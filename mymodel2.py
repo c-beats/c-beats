@@ -4,7 +4,19 @@
 #import os
 #from time import time
 from fcntl import DN_DELETE
-from nbeats_utils import * 
+#from nbeats_utils import * 
+
+
+import numpy as np
+import torch
+import random
+import os 
+
+      
+
+
+
+
 from typing import Union
 
 import numpy as np
@@ -22,7 +34,8 @@ from torch.nn import *
 def layers_FC(num_layers, in_, mid_, out_, dropout = 0.2):
     layers_ = []
     if num_layers==1:
-        layers_.append(Linear(in_, out_))
+        mid_=out_
+    layers_.append(Linear(in_, mid_))
     for i in range(num_layers-2):
         layers_.append(BatchNorm1d(mid_))
         layers_.append(ReLU(inplace = True))
@@ -36,13 +49,15 @@ def layers_FC(num_layers, in_, mid_, out_, dropout = 0.2):
     return nn.Sequential(*layers_)
     
     
-def layers_CNN(num_layers, in_, out_, kernels, strides, padding, padding_mode):
+def layers_CNN(num_layers, in_, out_, kernels, strides, padding,padding_mode):
     layers_ = []
-    layers_.append(Conv1d(in_, out_, kernels,strides, padding, padding_mode))
+    layers_.append(Conv1d(in_, out_, kernels,strides, padding=padding, 
+                          padding_mode=padding_mode))
     for i in range(num_layers-1):
         layers_.append(BatchNorm1d(out_))
         layers_.append(ReLU(inplace = True))
-        layers_.append(Conv1d(out_, out_, kernels, strides, padding, padding_mode))
+        layers_.append(Conv1d(out_, out_, kernels, strides, padding=padding, 
+                              padding_mode=padding_mode))
     layers_.append(BatchNorm1d(out_))
     layers_.append(ReLU(inplace = True))
     return nn.Sequential(*layers_)
@@ -62,8 +77,8 @@ class ConvBlock(nn.Module):
         self.seed = seed
 
         seed_everything(self.seed)
-        self.conv_block = layers_CNN(num_layers, channels[0], channels[1], 
-                                      kernels, strides, padding, padding_mode)
+        self.conv_block = layers_CNN(num_layers, int(channels[0]), int(channels[1]), 
+                                      kernels, strides, padding, padding_mode).cuda()
 
 
     def forward(self, x):
@@ -85,7 +100,8 @@ class FCBlock(nn.Module):
         seed_everything(self.seed)
 
         self.fc_layers = layers_FC(num_layers, input_dim, middle_dim, 
-                                   output_dim, dropout)
+                                   output_dim, dropout).cuda()
+        
 
     def forward(self, x):
         return self.fc_layers(x)
@@ -111,6 +127,7 @@ class CBeatsNet(nn.Module):
                 padding_mode = 'zeros',
                 strides = 1,
                 
+                dropout = 0.2,
                 middle_dim = 64,
                 weight_sharing = True,
                 return_decomp = True,
@@ -146,8 +163,10 @@ class CBeatsNet(nn.Module):
         self.strides = strides
 
         # 4) architecture of FC
+        self.dropout = dropout
         self.middle_dim = middle_dim
         self.weight_sharing = weight_sharing
+        
         
         # 5) etc
         self.return_decomp = return_decomp
@@ -161,7 +180,7 @@ class CBeatsNet(nn.Module):
                                       thetas_dim[0],
                                       kernels_trend,(1,*channels_trend),
                                       padding, padding_mode, strides,
-                                      middle_dim,
+                                      middle_dim,dropout,
                                       block_num[0], num_layers_CNN[0], 
                                       num_layers_FC[0],
                                       weight_sharing,
@@ -171,7 +190,7 @@ class CBeatsNet(nn.Module):
                                         thetas_dim[1],
                                         kernels_season,(1,*channels_season),
                                         padding, padding_mode, strides,
-                                        middle_dim,
+                                        middle_dim,dropout,
                                         block_num[1], num_layers_CNN[1], 
                                         num_layers_FC[1],
                                         weight_sharing,
@@ -189,13 +208,15 @@ class CBeatsNet(nn.Module):
         res_decomp = []
 
         ## Trend
+        #b_TREND, f_TREND, theta_back_TREND, theta_fore_TREND = self.trend_stack(x.to(self.device))
+        
         out = self.trend_stack(x.to(self.device))
         b_TREND, f_TREND, theta_back_TREND, theta_fore_TREND = out
         res_decomp.append(f_TREND)
         
         ## Seasonality
-        out = self.season_stack(b_TREND)
-        b_SEASON, f_SEASON, theta_back_SEASON, theta_fore_SEASON = out
+        b_SEASON, f_SEASON, theta_back_SEASON, theta_fore_SEASON = self.season_stack(b_TREND)
+        #b_SEASON, f_SEASON, theta_back_SEASON, theta_fore_SEASON = out
         res_decomp.append(f_SEASON)
 
         forecast = f_TREND+f_SEASON
@@ -289,7 +310,8 @@ class TrendStack(Stack):
                                            middle_dim = middle_dim,
                                            output_dim = thetas_dim,
                                            dropout = dropout,
-                                           device = device, seed = seed) 
+                                           device = device, 
+                                           seed = seed) 
                                    for i in range(block_num)]
         
         if self.weight_sharing:
@@ -307,6 +329,8 @@ class TrendStack(Stack):
         for conv_block in self.CONV_blocks:
             self.parameters.extend(conv_block.parameters())
         for conv_block in self.FC_blocks_back:
+            self.parameters.extend(conv_block.parameters())
+        for conv_block in self.FC_blocks_fore:
             self.parameters.extend(conv_block.parameters())
         self.parameters = nn.ParameterList(self.parameters)
         
@@ -328,7 +352,7 @@ class TrendStack(Stack):
 
             theta_back_lst.append(theta_back_pred)
             theta_fore_lst.append(theta_fore_pred)
-
+            
             back_pred = trend_model(theta_back_pred, self.backcast_linspace, 
                                     self.device)
             fore_pred = trend_model(theta_fore_pred, self.forecast_linspace, 
