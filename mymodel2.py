@@ -1,32 +1,7 @@
-#import pickle
-#import random
-#import math
-#import os
-#from time import time
-from fcntl import DN_DELETE
-#from nbeats_utils import * 
-
-
-import numpy as np
-import torch
-import random
-import os 
-
-      
-
-
-
-
+from cbeats_utils import * 
 from typing import Union
-
-import numpy as np
-import torch
-from torch import nn, optim
+from torch import nn
 from torch.nn import *
-#from torch.nn import functional as F
-#from torch.nn.functional import mse_loss, l1_loss, binary_cross_entropy, cross_entropy
-#from torch.optim import Optimizer
-
 
 # ---------------------------------------------------------------------------- #
 # NN MODULES
@@ -47,7 +22,6 @@ def layers_FC(num_layers, in_, mid_, out_, dropout = 0.2):
         layers_.append(Dropout(dropout))
         layers_.append(Linear(mid_, out_))
     return nn.Sequential(*layers_)
-    
     
 def layers_CNN(num_layers, in_, out_, kernels, strides, padding,padding_mode):
     layers_ = []
@@ -78,7 +52,7 @@ class ConvBlock(nn.Module):
 
         seed_everything(self.seed)
         self.conv_block = layers_CNN(num_layers, int(channels[0]), int(channels[1]), 
-                                      kernels, strides, padding, padding_mode).cuda()
+                                      kernels, strides, padding, padding_mode).to(device)
 
 
     def forward(self, x):
@@ -100,7 +74,7 @@ class FCBlock(nn.Module):
         seed_everything(self.seed)
 
         self.fc_layers = layers_FC(num_layers, input_dim, middle_dim, 
-                                   output_dim, dropout).cuda()
+                                   output_dim, dropout).to(device)
         
 
     def forward(self, x):
@@ -133,7 +107,7 @@ class CBeatsNet(nn.Module):
                 return_decomp = True,
                 return_theta = True,
                 device = torch.device('cuda'),
-                seed = 402):
+                seed = 402, **kwargs):
 
         super(CBeatsNet, self).__init__()
 
@@ -219,11 +193,11 @@ class CBeatsNet(nn.Module):
         #b_SEASON, f_SEASON, theta_back_SEASON, theta_fore_SEASON = out
         res_decomp.append(f_SEASON)
 
-        forecast = f_TREND+f_SEASON
-        backcast = b_TREND+b_SEASON
+        forecast = f_TREND + f_SEASON
+        backcast = b_TREND + b_SEASON
         
-        theta_list = [theta_back_TREND,theta_fore_TREND,
-                      theta_back_SEASON,theta_fore_SEASON]
+        theta_list = [theta_back_TREND, theta_fore_TREND,
+                      theta_back_SEASON, theta_fore_SEASON]
         
         if self.return_decomp & self.return_theta:
             return backcast, forecast, res_decomp, theta_list
@@ -363,7 +337,7 @@ class TrendStack(Stack):
         backcast = backcast.to(self.device) - backcast_cumsum
         forecast = forecast.to(self.device) + forecast_cumsum
 
-        return backcast, forecast,theta_back_lst,theta_fore_lst
+        return backcast, forecast, theta_back_lst, theta_fore_lst
 
 
 class SeasonStack(Stack):
@@ -450,5 +424,5 @@ class SeasonStack(Stack):
             h_prev = h_prev + h
         backcast = backcast.to(self.device) - backcast_cumsum
         forecast = forecast.to(self.device) + forecast_cumsum
-        return backcast, forecast,theta_back_lst,theta_fore_lst
+        return backcast, forecast, theta_back_lst, theta_fore_lst
         
