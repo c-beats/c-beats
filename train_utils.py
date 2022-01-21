@@ -92,7 +92,7 @@ class Trainer:
             os.mkdir('./model_weights')
         path_ = './model_weights/' + self.prefix
         os.mkdir(path_)
-        self.save_path = path_ + './checkpoint.pt'
+        self.save_path = path_ + '/checkpoint.pt'
 
 
     def train_one_epoch(self):
