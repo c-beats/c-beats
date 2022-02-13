@@ -40,30 +40,22 @@ def generate_plot(model, loader, view_len = 50):
     season = []
     model.eval()
     with torch.no_grad():
+        
         for x_total, y_total in loader:
             _, forecast, stack_res_tr, _ = model(x_total.to(model.device))
 
             pred.append(forecast.detach().cpu().numpy())
-            gt.append(y_total.numpy())
-
+            gt.append(y_total.numpy())           
             trend_res = stack_res_tr[0].detach().cpu().numpy()
             season_res = stack_res_tr[1].detach().cpu().numpy() - trend_res
             trend.append(trend_res)
             season.append(season_res)
-
-
-    gt = np.array(gt).flatten()
-    pred = np.array(pred).flatten()
-    trend = np.array(trend).flatten()
-    season = np.array(season).flatten()
-    print(gt)
-    print(pred)
-    print(trend)
-    print(season)
-    print(gt.shape)
-    print(pred.shape)
-    print(trend.shape)
-    print(season.shape)
+    
+    
+    gt = np.vstack(gt).flatten()
+    pred = np.vstack(pred).flatten()
+    trend = np.vstack(trend).flatten()
+    season = np.vstack(season).flatten()
     
     
     beg, mid, end = 100, len(gt)//2, len(gt) - view_len
