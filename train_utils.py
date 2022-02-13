@@ -8,6 +8,8 @@ from torch import optim
 from data import * 
 from experiment_module import * 
 
+from pytorch_forecasting.metrics import SMAPE
+
 # ---------------------------------------------------------------------------- #
 # HYPERPARAMETER TUNING
 
@@ -85,6 +87,8 @@ class Trainer:
         # 추후에 다른 objective 도 추가...
         if config['loss_type'] == 'mse':
             return torch.nn.MSELoss()
+        elif config['loss_type'] == 'SMAPE':
+            return SMAPE()
 
     def make_dir(self):
         ''''''

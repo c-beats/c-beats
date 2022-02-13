@@ -181,16 +181,14 @@ class CBeatsNet(nn.Module):
     def forward(self, x):
         res_decomp = []
 
-        ## Trend
-        #b_TREND, f_TREND, theta_back_TREND, theta_fore_TREND = self.trend_stack(x.to(self.device))
-        
+        ## Trend        
         out = self.trend_stack(x.to(self.device))
         b_TREND, f_TREND, theta_back_TREND, theta_fore_TREND = out
         res_decomp.append(f_TREND)
         
         ## Seasonality
-        b_SEASON, f_SEASON, theta_back_SEASON, theta_fore_SEASON = self.season_stack(b_TREND)
-        #b_SEASON, f_SEASON, theta_back_SEASON, theta_fore_SEASON = out
+        out = self.season_stack(b_TREND)
+        b_SEASON, f_SEASON, theta_back_SEASON, theta_fore_SEASON = out
         res_decomp.append(f_SEASON)
 
         forecast = f_TREND + f_SEASON
