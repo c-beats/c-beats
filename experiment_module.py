@@ -56,6 +56,11 @@ def generate_plot(model, loader, view_len = 50):
     pred = np.array(pred).flatten()
     trend = np.array(trend).flatten()
     season = np.array(season).flatten()
+    print(gt.shape)
+    print(pred.shape)
+    print(trend.shape)
+    print(season.shape)
+    
     
     beg, mid, end = 100, len(gt)//2, len(gt) - view_len
 

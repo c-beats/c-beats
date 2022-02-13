@@ -67,7 +67,7 @@ def scaling(lst,train_ratio,type='minmax'):
 # DATASET
 
 class TotalDataset(Dataset):
-    def __init__(self, X , y):
+    def __init__(self, X, y):
         self.X = X
         self.y = y
 
