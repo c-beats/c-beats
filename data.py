@@ -112,7 +112,8 @@ def initialize_loader(data, train_ratio = 0.6, forecast_length = 5,
     #np.random.seed(seed_num) shuffle 안 하므로;ㅣ두
 
     train_dataset = TotalDataset(train_X, train_y)
-    train_loader = DataLoader(train_dataset, batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size, drop_last=True,
+                              shuffle=True)
 
     val_dataset = TotalDataset(val_X, val_y)
     val_loader = DataLoader(val_dataset, batch_size, shuffle=False)
